@@ -1,0 +1,72 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Magic Frame</title>
+<style>
+  html,body{height:100%;margin:0;background:#000}
+  #stage{position:fixed;inset:0;background:#000;overflow:hidden}
+  /* Two layers: visible and preload. Both full-bleed, contain aspect */
+  .layer{
+    position:absolute; inset:0;
+    width:100%; height:100%;
+    object-fit:contain; background:#000;
+  }
+  /* We don’t fade—just keep both ready and swap src when preloaded */
+</style>
+</head>
+<body>
+<div id="stage">
+  <img id="visible" class="layer" alt="">
+  <img id="preload" class="layer" alt="" style="visibility:hidden;pointer-events:none">
+</div>
+
+<script>
+  // === EDIT THIS to your stable image URL (same filename you overwrite) ===
+  const IMAGE_URL = "https://drive.google.com/uc?export=download&id=1IyTZ0pXZrn9ukx4GZkd91CLUZRdZU9Hm";  // e.g., Dropbox ?raw=1 link
+  // How often to check for updates (ms). 1500–3000 is fine.
+  const REFRESH_MS = 1500;
+
+  // Cache-busting param so the TV doesn’t reuse old image
+  const bust = () => "t=" + Date.now();
+
+  const vis = document.getElementById('visible');
+  const pre = document.getElementById('preload');
+
+  // First load
+  function firstLoad(){
+    const url = IMAGE_URL + (IMAGE_URL.includes('?') ? '&' : '?') + bust();
+    pre.onload = () => { vis.src = pre.src; };
+    pre.onerror = () => {};
+    pre.src = url;
+  }
+
+  // Poll: preload new image; if it loads, swap instantly (no flash)
+  function tick(){
+    const url = IMAGE_URL + (IMAGE_URL.includes('?') ? '&' : '?') + bust();
+    const probe = new Image();
+    probe.onload = () => {
+      // Arm the hidden img so the real resource is in cache/decoded
+      pre.src = url;
+      // Ensure onload has fired; then swap the visible src to the already-loaded one
+      requestAnimationFrame(()=>{ vis.src = pre.src; });
+    };
+    probe.onerror = () => {};
+    probe.src = url;
+  }
+
+  // Kick off
+  firstLoad();
+  setInterval(tick, REFRESH_MS);
+
+  // Optional: manual refresh with the R key if you have a keyboard
+  document.addEventListener('keydown', e => {
+    if (e.key === 'r' || e.key === 'R') tick();
+  });
+
+  // Keep screen awake hints (TV browser usually fine)
+  try { if ('wakeLock' in navigator) navigator.wakeLock.request('screen'); } catch(_) {}
+</script>
+</body>
+</html>
